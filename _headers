@@ -1,0 +1,57 @@
+# Netlify / Cloudflare Pages: this file is served verbatim from the deploy
+# root and is honored by both platforms (same syntax). Vercel ignores it —
+# use vercel.json for Vercel.
+
+# ─── HTML (always revalidate) ─────────────────────────────────────────
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+/
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+# ─── Hashed assets (immutable, 1 year) ────────────────────────────────
+# JS/CSS bundles include a content hash in the filename so they can be
+# cached forever; a content change produces a new filename automatically.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+# ─── Fonts (immutable, 1 year) ────────────────────────────────────────
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+  Access-Control-Allow-Origin: *
+
+# ─── Images (1 year, but not strictly immutable — they may be renamed) ─
+/images/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+# ─── CV PDFs (1 week — long enough for caching, short enough that the
+#       recruiter who downloaded one yesterday gets a fresh version if
+#       you republish) ─────────────────────────────────────────────────
+/cv_files/*
+  Cache-Control: public, max-age=604800
+  X-Content-Type-Options: nosniff
+  Content-Disposition: attachment
+
+# ─── Public files referenced from <head> ──────────────────────────────
+/favicon.svg
+  Cache-Control: public, max-age=86400
+/manifest.webmanifest
+  Cache-Control: public, max-age=86400
+  Content-Type: application/manifest+json
+/robots.txt
+  Cache-Control: public, max-age=86400
+/sitemap.xml
+  Cache-Control: public, max-age=86400

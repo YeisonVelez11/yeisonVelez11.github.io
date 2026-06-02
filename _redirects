@@ -1,0 +1,5 @@
+# SPA fallback for Netlify + Cloudflare Pages.
+# Every unknown path is served the index.html so the React app can
+# handle client-side routing (in our case there's no router, but this
+# also protects against trailing-slash and case typos returning 404).
+/*    /index.html   200

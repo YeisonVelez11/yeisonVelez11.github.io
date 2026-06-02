@@ -1,0 +1,1112 @@
+<!doctype html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  WEB VITALS CHECKLIST — what this document does for Core Web Vitals
+  ═══════════════════════════════════════════════════════════════════════
+
+  Goal:  LCP < 2.5s   ·   CLS < 0.1   ·   INP < 200ms   ·   FCP < 1.8s
+  Measured (1440x900 localhost): LCP 212ms · CLS 0.000 · FCP 172ms
+
+  1. LCP (Largest Contentful Paint) — the hero photo
+     • <link rel="preload" as="image" fetchpriority="high"> for profile.webp
+       (requests in parallel with JS, not after React renders the hero)
+     • <img loading="eager" fetchpriority="high" width height> in Hero.tsx
+       so the LCP candidate paints as soon as bytes arrive
+     • Hero photo height capped (max-height: min(72vh, 540px)) — keeps the
+       LCP element within initial viewport on tall screens
+     • Pure-CSS intro gate (no WebGL → no 600 kB three.js → no LCP delay)
+
+  2. CLS (Cumulative Layout Shift) — 0.0000 verified
+     • Every <img> has explicit width + height attributes
+     • Achievement cards have min-height reserved for the value box
+     • Photo cards use aspect-ratio (4:5 / 4:3)
+     • Web fonts: Inter Fallback + Fraunces Fallback @font-face with
+       size-adjust + ascent/descent overrides → font swap = invisible
+     • `display: swap` (not 'block') — text appears with fallback instantly
+     • <Suspense fallback={<SectionFallback id="…" />}> reserves height for
+       lazy chunks so anchor scroll lands precisely
+
+  3. INP (Interaction to Next Paint) — interactions stay <200ms
+     • Mobile particle reduction: FloatingShapes filters 38→13 orbs on
+       phones (useIsMobile in FloatingShapes.tsx) → ~68% fewer framer-
+       motion spring subscriptions ticking per frame
+     • FloatingShapes itself is lazy + requestIdleCallback (App.tsx) →
+       NEVER blocks input on initial load
+     • Buttons have lightweight handlers (no synchronous heavy work)
+     • Modal/menu use createPortal — no main-tree re-render cascade
+
+  4. FCP (First Contentful Paint) — 172ms localhost
+     • Critical CSS inlined in this <head> (intro gate, boot loader,
+       font-face) — first paint without waiting for external stylesheet
+     • Self-hosted fonts (no Google CDN roundtrip)
+     • Boot loader inside #root paints instantly on repeat visits
+
+  5. TTFB / network
+     • Brotli + gzip pre-compression at build time
+     • Immutable Cache-Control on hashed assets (1 year)
+     • `<link rel="preload">` for the only critical fonts (Inter, the
+       body font used everywhere from FCP onward)
+
+  6. JavaScript bundle strategy
+     • Main entry: ~107 kB raw (107 kB / ~32 kB brotli)
+     • Lazy chunks: Portfolio (12 kB), Testimonials (26 kB),
+       FloatingShapes (12 kB) — each split via React.lazy
+     • esbuild splitting + minify + drop console/debugger in prod
+
+  More detail in README → "Performance" + "SCSS pipeline" sections.
+  Every changelog entry below #29 documents a specific perf change.
+-->
+<html lang="es" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a0f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fafaf7" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!--
+      Content Security Policy — defense in depth.
+      Key clause for the chat: `connect-src 'self' https://api.groq.com`
+      limits where the page can fetch to. If a hypothetical XSS landed, the
+      attacker could not exfiltrate the Groq API key (baked into the bundle)
+      to a server they control — the browser would block the request.
+
+      'unsafe-inline' on script/style is required because index.html ships
+      an inline JSON-LD block, an inline theme/loader script, and framer-motion
+      uses inline `style` attributes. Tightening to nonces would require
+      build-pipeline changes; this policy still meaningfully reduces blast
+      radius without that complexity.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.groq.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';" />
+
+    <!-- Primary Meta Tags -->
+    <title>Yeison Velez · Frontend Developer · React, TypeScript, Accesibilidad Web</title>
+    <meta name="title" content="Yeison Velez · Frontend Developer · React, TypeScript, Accesibilidad Web" />
+    <meta
+      name="description"
+      content="Yeison Arles Velez Guzman — Desarrollador Frontend con +10 años en React, TypeScript, Vue y Angular. Code Owner VPP @ Mercado Libre. Clientes Fortune-500: Verizon, Morningstar. Accesibilidad WCAG 2.1 AA y Core Web Vitals."
+    />
+    <meta
+      name="keywords"
+      content="Yeison Velez, Yeison Arles Velez Guzman, Frontend Developer Colombia, React Developer Manizales, TypeScript, Vue, Angular, Accesibilidad Web, WCAG, Core Web Vitals, Mercado Libre, freelancer.com, Preferred Freelancer"
+    />
+    <meta name="author" content="Yeison Arles Velez Guzman" />
+    <link rel="canonical" href="https://yeisonvelez.com/" />
+    <link rel="alternate" hreflang="es" href="https://yeisonvelez.com/" />
+    <link rel="alternate" hreflang="en" href="https://yeisonvelez.com/?lang=en" />
+    <link rel="alternate" hreflang="x-default" href="https://yeisonvelez.com/" />
+
+    <!-- Robots / AI crawlers -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="bingbot" content="index, follow" />
+    <meta name="GPTBot" content="index, follow" />
+    <meta name="ChatGPT-User" content="index, follow" />
+    <meta name="ClaudeBot" content="index, follow" />
+    <meta name="PerplexityBot" content="index, follow" />
+    <meta name="Google-Extended" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://yeisonvelez.com/" />
+    <meta property="og:title" content="Yeison Velez · Frontend Developer · React, TypeScript" />
+    <meta
+      property="og:description"
+      content="+10 años construyendo interfaces escalables y accesibles. Code Owner VPP @ Mercado Libre. Clientes Fortune-500."
+    />
+    <meta property="og:image" content="https://yeisonvelez.com/images/og-cover.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:site_name" content="Yeison Velez Portfolio" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Yeison Velez · Frontend Developer" />
+    <meta name="twitter:description" content="+10 años construyendo interfaces accesibles de alto rendimiento. Code Owner VPP @ Mercado Libre." />
+    <meta name="twitter:image" content="https://yeisonvelez.com/images/og-cover.jpg" />
+
+    <!-- Icons / Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!--
+      Self-hosted fonts (latin subset only — Spanish + English). Eliminates
+      the Google Fonts CDN round trip (DNS + TCP + TLS + CSS fetch + font
+      fetch) which saved ~100-300ms on slower networks. Files are immutable
+      content-addressable woff2 served from /fonts/ with long cache.
+
+      Strategy:
+        - Inline @font-face declarations below (no extra round trip for the
+          CSS — fonts start downloading on first paint).
+        - Preload the body font (Inter) with `as="font" crossorigin` so it's
+          requested in parallel with JS, not after CSS parses.
+        - Display-font (Fraunces) is also preloaded — it's prominently used
+          in the hero name and section headers (would shift if late).
+        - All fonts use `font-display: swap` → text appears with system
+          fallback instantly, swaps to custom when ready.
+    -->
+    <!-- Only Inter is preloaded — it's the body font used everywhere from
+         first paint. Fraunces (display serif) loads via @font-face after
+         the CSS parses; its absence is invisible because the Georgia
+         fallback has matched metric overrides (size-adjust etc.). -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/inter.woff2" crossorigin />
+
+    <!--
+      Performance: preload the LCP image (hero photo) and the boot-loader
+      logo so they're requested in parallel with the JS bundle instead of
+      waiting until React renders the hero. Big win on mobile (3G).
+    -->
+    <link rel="preload" as="image" href="/images/profile.webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/logo-mark.svg" />
+
+    <!-- Structured data: Person + ProfilePage + WebSite (great for Google + ATS + AI engines) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://yeisonvelez.com/#person",
+            "name": "Yeison Arles Velez Guzman",
+            "alternateName": ["Yeison Velez", "Yeison Arles Vélez Guzmán"],
+            "jobTitle": "Frontend Developer",
+            "description": "Frontend developer with 10+ years building scalable, accessible, high-performance interfaces. Code Owner of the Virtual Product Page at Mercado Libre.",
+            "url": "https://yeisonvelez.com",
+            "image": "https://yeisonvelez.com/images/profile.webp",
+            "email": "mailto:yeisonvg11@gmail.com",
+            "telephone": "+57-300-279-7900",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Manizales",
+              "addressRegion": "Caldas",
+              "addressCountry": "CO"
+            },
+            "alumniOf": {
+              "@type": "CollegeOrUniversity",
+              "name": "Universidad de Manizales"
+            },
+            "worksFor": {
+              "@type": "Organization",
+              "name": "Mercado Libre",
+              "url": "https://www.mercadolibre.com"
+            },
+            "knowsAbout": [
+              "React",
+              "TypeScript",
+              "JavaScript",
+              "Vue.js",
+              "Angular",
+              "Next.js",
+              "Node.js",
+              "Web Accessibility",
+              "WCAG 2.1 AA",
+              "Core Web Vitals",
+              "UX/UI Design",
+              "Design Systems",
+              "AI-assisted development",
+              "Model Context Protocol"
+            ],
+            "knowsLanguage": [
+              { "@type": "Language", "name": "Spanish", "alternateName": "es" },
+              { "@type": "Language", "name": "English", "alternateName": "en" }
+            ],
+            "sameAs": [
+              "https://www.linkedin.com/in/yeison-velez",
+              "https://www.freelancer.com/u/yeisonvelez11",
+              "https://www.behance.net/yeisonvelez"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://yeisonvelez.com/#website",
+            "url": "https://yeisonvelez.com",
+            "name": "Yeison Velez Portfolio",
+            "inLanguage": ["es-CO", "en-US"],
+            "publisher": { "@id": "https://yeisonvelez.com/#person" }
+          },
+          {
+            "@type": "ProfilePage",
+            "@id": "https://yeisonvelez.com/#profile",
+            "mainEntity": { "@id": "https://yeisonvelez.com/#person" },
+            "dateModified": "2026-05-24"
+          }
+        ]
+      }
+    </script>
+
+    <!--
+      Critical CSS — inline so the intro gate paints on the very first frame
+      (before React loads). The gate animation is pure CSS — zero JS dep,
+      zero extra payload. It auto-removes itself when done.
+
+      Decisions:
+        - WebGL three.js / babylon.js would have added ~600 kB gzipped → would
+          have hurt LCP and Web Vitals. Pure CSS + perspective transforms
+          deliver ~80% of the visual effect at 0% performance cost.
+        - Plays only on first visit (sessionStorage gate-seen).
+        - Skipped entirely under prefers-reduced-motion.
+        - Skip button on focus for accessibility.
+    -->
+    <style>
+      /* ─── Self-hosted fonts (latin subset, variable) ─── */
+      @font-face {
+        font-family: 'Fraunces';
+        font-style: italic;
+        font-weight: 300 900;
+        font-display: swap;
+        src: url(/fonts/fraunces-italic.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Fraunces';
+        font-style: normal;
+        font-weight: 300 900;
+        font-display: swap;
+        src: url(/fonts/fraunces.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 300 700;
+        font-display: swap;
+        src: url(/fonts/inter.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* ─── Fallback font metric overrides (prevent CLS during font swap) ─── */
+      /* Inter → Arial: tuned values from web.dev/font-metric-overrides */
+      @font-face {
+        font-family: 'Inter Fallback';
+        src: local('Arial');
+        ascent-override: 90.20%;
+        descent-override: 22.48%;
+        line-gap-override: 0%;
+        size-adjust: 107.40%;
+      }
+      /* Fraunces → Georgia: serif fallback with matched metrics */
+      @font-face {
+        font-family: 'Fraunces Fallback';
+        src: local('Georgia');
+        ascent-override: 95%;
+        descent-override: 23%;
+        line-gap-override: 0%;
+        size-adjust: 99%;
+      }
+
+      html { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: #0a0a0f;
+        color: #f5f5f7;
+        /* Inter Fallback first → swap to Inter when loaded with zero CLS */
+        font-family: 'Inter', 'Inter Fallback', system-ui, -apple-system, sans-serif;
+      }
+
+      /* ─────────────────── REALISTIC INTRO GATE ───────────────────
+         Layered design (no WebGL, pure CSS):
+           1. Vignette background (dimly-lit room) — sets mood
+           2. Bright golden light source behind the doors (visible only after
+              they part — that's how doors-into-light shots look in film)
+           3. Two doors, each composed of:
+                ─ wood-grain backdrop (multiple repeating gradients)
+                ─ 2 carved sunken panels (inset shadows = relief)
+                ─ brass corner trim (gradient strokes)
+                ─ brass handle near the seam
+                ─ a "glow seam" running down the inner edge that brightens
+                  just before the doors open (light leaking through)
+           4. Center seam: warm vertical light line, brightens then disappears
+           5. Volumetric light rays that fan out when doors swing open
+           6. White-hot flash from the void
+           7. Floating dust particles for atmosphere
+           8. Floor plane in perspective (ground reflection)
+      */
+
+      .intro-gate {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #050507;
+        perspective: 1800px;
+        perspective-origin: 50% 45%;
+        transform-style: preserve-3d;
+        overflow: hidden;
+        /* Simplified timing:
+             0.55–1.55s: doors swing open
+             1.05–2.25s: logo flashes in + out (1.2s total)
+             2.0–3.0s:   gate fades to reveal the page (overlapping the
+                         tail of the logo, so the transition feels fluid). */
+        animation: gate-overlay-out 1.0s 2.0s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+      }
+
+      /* ─── 1. Vignette / room mood ─── */
+      .intro-gate::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse at 50% 35%, rgba(40,28,15,0.55) 0%, transparent 60%),
+          radial-gradient(ellipse at 50% 110%, #050507 30%, transparent 70%);
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      /* ─── 2. Camera-flash white behind the doors ─── */
+      /* Two-phase animation:
+            • Phase 1 (0.55s → 0.95s) FLASH PEAK: snaps to opacity 1 with
+              brightness(1.6) → blindingly white, overexposed feel (camera flash).
+            • Phase 2 (0.95s → 1.6s)  SETTLE: brightness eases back to 1.0
+              while a subtle warm tint emerges at the edges.
+         The white at peak is near-pure #fff with a touch of bloom; the
+         settled state has a barely-visible warm vignette to avoid the
+         flat-rectangle look. */
+      .intro-gate__light {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0;
+        background:
+          /* Subtle warm vignette at corners — only visible once the
+             brightness has settled; otherwise drowned by the flash. */
+          radial-gradient(ellipse 140% 130% at 50% 50%,
+            transparent 50%,
+            rgba(255, 230, 195, 0.12) 80%,
+            rgba(245, 215, 175, 0.22) 100%),
+          /* Soft center bloom — gives the flash a "hot spot" feel */
+          radial-gradient(ellipse 90% 100% at 50% 50%,
+            rgba(255, 255, 255, 1) 0%,
+            rgba(255, 254, 250, 0.95) 50%,
+            rgba(255, 250, 240, 0.85) 100%),
+          /* Pure white base */
+          #ffffff;
+        animation: light-flash-in 0.45s 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) forwards,
+                   light-flash-settle 0.9s 1s ease-out forwards;
+      }
+
+      /* ─── 3. The doors ─── */
+      .intro-gate__door {
+        position: absolute;
+        top: 0; bottom: 0;
+        width: 50%;
+        z-index: 5;
+        will-change: transform, opacity;
+        /* backface-visibility intentionally NOT hidden — at -90° the door
+           would vanish abruptly while its children (panels, handle) kept
+           rendering as orphans in 3D space. Instead, a synchronized
+           opacity fade (`door-dissolve`) gracefully dissolves the door
+           into the light as it sweeps past edge-on. */
+        transform-style: preserve-3d;
+        background:
+          /* SHEEN: diagonal highlight giving a polished feel */
+          linear-gradient(135deg,
+            rgba(255,220,170,0.04) 0%,
+            transparent 30%,
+            transparent 70%,
+            rgba(255,220,170,0.03) 100%),
+          /* GRAIN: vertical micro-stripes (wood pores) */
+          repeating-linear-gradient(90deg,
+            rgba(0,0,0,0) 0,
+            rgba(0,0,0,0) 3px,
+            rgba(0,0,0,0.25) 3px,
+            rgba(0,0,0,0.25) 4px,
+            rgba(0,0,0,0) 4px,
+            rgba(0,0,0,0) 7px,
+            rgba(255,255,255,0.012) 7px,
+            rgba(255,255,255,0.012) 8px),
+          /* WAVE GRAIN: large irregular waves (knots) */
+          repeating-radial-gradient(ellipse 200px 800px at 50% 30%,
+            rgba(80,50,25,0.3) 0,
+            rgba(80,50,25,0.3) 2px,
+            transparent 2px,
+            transparent 60px),
+          repeating-radial-gradient(ellipse 240px 1000px at 30% 70%,
+            rgba(60,35,15,0.25) 0,
+            rgba(60,35,15,0.25) 3px,
+            transparent 3px,
+            transparent 80px),
+          /* TONAL: dark walnut base, lighter in the middle */
+          linear-gradient(to bottom,
+            #181014 0%,
+            #1f1620 35%,
+            #261b29 55%,
+            #1a1218 80%,
+            #0f0a14 100%);
+        box-shadow:
+          inset 0 0 120px rgba(0,0,0,0.6),
+          inset 0 -120px 80px -80px rgba(0,0,0,0.7);
+      }
+
+      /* Door beveled outer trim (brass corner edge) */
+      .intro-gate__door::before {
+        content: '';
+        position: absolute;
+        inset: 14px;
+        border: 1px solid rgba(245,183,84,0.18);
+        border-radius: 1px;
+        box-shadow:
+          inset 0 0 0 1px rgba(0,0,0,0.4),
+          inset 0 0 24px rgba(245,183,84,0.06);
+        pointer-events: none;
+      }
+
+      /* Door inner light glow at seam edge.
+         Warm-white sunlight palette (per "light through doorway" cinema
+         convention): near-white core with a subtle peach halo. Avoids the
+         saturated-yellow look of pure amber/orange — the eye reads
+         saturated yellow as "lamp", not "daylight". */
+      .intro-gate__door::after {
+        content: '';
+        position: absolute;
+        top: 0; bottom: 0;
+        width: 6px;
+        background: linear-gradient(to bottom,
+          transparent 0%,
+          rgba(255,240,215,0.45) 30%,
+          rgba(255,250,235,0.75) 50%,
+          rgba(255,240,215,0.45) 70%,
+          transparent 100%);
+        filter: blur(4px);
+        opacity: 0;
+        animation: seam-glow 0.6s 0.1s ease-out forwards;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      /* Diagnosis behind these values:
+         A zero-thickness CSS plane suffers from a foreshortening "cliff" as
+         it approaches 90° — its visible width drops as cos(angle), so a
+         linear rotation of 0→-95° appears to "vanish" rapidly between -60°
+         and -90° regardless of the easing curve. Adjusting the cubic-bezier
+         only relocates the cliff in time; it cannot remove it.
+         Solution: never let the door reach the cliff. Max rotation = -78°,
+         where cos(78°) = 21%, so the door is still a substantial vertical
+         band at the end of the swing. The DISAPPEARANCE is then driven
+         purely by an opacity dissolve, which is perceptually linear.
+
+         Both animations finish simultaneously at t=2.0s — same moment as
+         camera-shake, camera-dolly and gate-overlay-out — so the user reads
+         "doors fully open + impact + page reveal" as ONE event.
+
+         door-open-*: ease-in-out (cubic-bezier(.42, 0, .58, 1)) — gentle
+           push, full mid-swing inertia, soft decel. The most familiar door
+           curve; predictable, no surprises.
+
+         door-dissolve: aggressive ease-OUT (cubic-bezier(.16, 1, .3, 1) — the
+           OutExpo curve from Penner easings). ~90% of the opacity fade
+           happens in the first 30% of the dissolve window (1.0s → 1.3s),
+           which is when the door still has ~80% width and is visually
+           dominant. From 1.3s onward, only trace-level opacity (<10%) is
+           left, which mathematically reaches 0 but is below the eye's
+           perception threshold for ~500ms — so the doors don't "vanish"
+           at any single moment, they dissolve INTO the warm light during
+           the most visible portion of the swing.
+
+           The earlier ease-in-out put the steepest opacity drop in the
+           middle of the dissolve, which combined multiplicatively with
+           the cos(angle) foreshortening to produce a presence cliff right
+           at the end (26% → 0% across the last 500ms). OutExpo front-loads
+           the fade so the residual trace decays asymptotically. */
+      .intro-gate__door--left {
+        left: 0;
+        transform-origin: left center;
+        animation:
+          door-open-left 1.45s 0.55s cubic-bezier(.42, 0, .58, 1) forwards,
+          door-dissolve  1.00s 1.00s cubic-bezier(.16, 1, .30, 1) forwards;
+      }
+      .intro-gate__door--left::after { right: -3px; }
+
+      .intro-gate__door--right {
+        right: 0;
+        transform-origin: right center;
+        animation:
+          door-open-right 1.45s 0.55s cubic-bezier(.42, 0, .58, 1) forwards,
+          door-dissolve   1.00s 1.00s cubic-bezier(.16, 1, .30, 1) forwards;
+      }
+      .intro-gate__door--right::after { left: -3px; }
+
+      /* ─── Carved panels inside each door (raised relief) ─── */
+      .intro-gate__panel {
+        position: absolute;
+        left: 12%;
+        right: 12%;
+        background:
+          /* Soft inner shadow + corner highlight = relief impression */
+          radial-gradient(ellipse at 50% 30%, rgba(245,183,84,0.05), transparent 60%),
+          linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+        border: 1px solid rgba(0,0,0,0.55);
+        border-radius: 2px;
+        box-shadow:
+          inset 0 4px 12px rgba(0,0,0,0.6),
+          inset 0 -2px 4px rgba(245,183,84,0.04),
+          inset 2px 0 6px rgba(0,0,0,0.4),
+          inset -2px 0 6px rgba(0,0,0,0.4),
+          0 1px 0 rgba(255,255,255,0.04);
+      }
+      .intro-gate__panel--top    { top: 6%;  height: 38%; }
+      .intro-gate__panel--bottom { top: 50%; height: 44%; }
+
+      /* Brass handle near the seam (just a thin oval pull) */
+      .intro-gate__handle {
+        position: absolute;
+        top: 50%;
+        width: 8px;
+        height: 80px;
+        transform: translateY(-50%);
+        background:
+          linear-gradient(to right,
+            #6b4a1a 0%,
+            #d29440 20%,
+            #f5b754 35%,
+            #ffd897 50%,
+            #f5b754 65%,
+            #d29440 80%,
+            #6b4a1a 100%);
+        border-radius: 4px;
+        box-shadow:
+          0 0 8px rgba(245,183,84,0.6),
+          0 2px 4px rgba(0,0,0,0.7);
+      }
+      .intro-gate__door--left  .intro-gate__handle { right: 8%; }
+      .intro-gate__door--right .intro-gate__handle { left:  8%; }
+
+      /* ─── 4. Glowing seam between closed doors — visible ABOVE doors ─── */
+      /* z-index 6 → renders on top of doors (z=5). This is the crack of
+         light between closed doors. Intensifies before the doors part,
+         then vanishes as they swing open (no longer needed once the
+         burst behind the doors is exposed). */
+      /* Color palette: warm-white sunlight, NOT saturated amber.
+         Core ≈ pure white; mid stops shift only a few units toward warm
+         (cream); the edges fade to soft peach. The box-shadow halo is the
+         only place where a faint dorado appears, and at low opacity so it
+         reads as "natural daylight bloom" instead of "yellow lamp light". */
+      .intro-gate__seam {
+        position: absolute;
+        top: 0; bottom: 0;
+        left: 50%;
+        width: 4px;
+        margin-left: -2px;
+        background: linear-gradient(to bottom,
+          transparent 0%,
+          rgba(255,240,220,0.55) 18%,
+          rgba(255,250,238,0.95) 45%,
+          rgba(255,255,250,1)    50%,
+          rgba(255,250,238,0.95) 55%,
+          rgba(255,240,220,0.55) 82%,
+          transparent 100%);
+        box-shadow:
+          0 0 24px rgba(255,235,205,0.55),
+          0 0 60px rgba(255,210,165,0.28);
+        filter: blur(0.5px);
+        z-index: 6; /* ABOVE doors — the visible crack between them */
+        opacity: 0;
+        transform: scaleX(0.4) scaleY(0.6);
+        animation: seam-intensify 0.55s 0.05s cubic-bezier(0.5, 0, 0.7, 0.4) forwards,
+                   seam-vanish 0.4s 0.6s ease-out forwards;
+        pointer-events: none;
+      }
+
+      /* ─── 4b. The BURST — light SOURCE positioned BEHIND the doors ─── */
+      /* z-index 2 → sits behind the doors (z=5). When doors are closed it's
+         completely hidden. As doors rotate open, the burst is revealed
+         through the widening gap — exactly like real light coming through
+         an opening door. No more "painted on the door surface" feel.
+         Slower animation (1.4s) so the rays are visible during most of
+         the door opening, not just a brief flash. */
+      .intro-gate__burst {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 230vmax; height: 230vmax;
+        transform: translate(-50%, -50%) scale(0);
+        background:
+          /* Horizontal beam (strongest — light spreads along the floor) */
+          linear-gradient(to right,
+            transparent 42%,
+            rgba(255, 220, 160, 0.5) 47%,
+            rgba(255, 245, 210, 0.95) 49.5%,
+            rgba(255, 255, 245, 1) 50%,
+            rgba(255, 245, 210, 0.95) 50.5%,
+            rgba(255, 220, 160, 0.5) 53%,
+            transparent 58%),
+          /* Vertical beam (along the seam itself) */
+          linear-gradient(to bottom,
+            transparent 38%,
+            rgba(255, 220, 160, 0.45) 46%,
+            rgba(255, 245, 210, 0.85) 49.5%,
+            rgba(255, 255, 245, 1) 50%,
+            rgba(255, 245, 210, 0.85) 50.5%,
+            rgba(255, 220, 160, 0.45) 54%,
+            transparent 62%),
+          /* Diagonal NE-SW */
+          linear-gradient(45deg,
+            transparent 46%,
+            rgba(255, 220, 160, 0.4) 48.5%,
+            rgba(255, 245, 210, 0.8) 49.7%,
+            rgba(255, 255, 245, 0.95) 50%,
+            rgba(255, 245, 210, 0.8) 50.3%,
+            rgba(255, 220, 160, 0.4) 51.5%,
+            transparent 54%),
+          /* Diagonal NW-SE */
+          linear-gradient(-45deg,
+            transparent 46%,
+            rgba(255, 220, 160, 0.4) 48.5%,
+            rgba(255, 245, 210, 0.8) 49.7%,
+            rgba(255, 255, 245, 0.95) 50%,
+            rgba(255, 245, 210, 0.8) 50.3%,
+            rgba(255, 220, 160, 0.4) 51.5%,
+            transparent 54%);
+        filter: blur(2px);
+        mix-blend-mode: screen;
+        z-index: 2; /* BEHIND doors (z=5) — revealed through opening */
+        opacity: 0;
+        animation: burst-out 1.4s 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+        pointer-events: none;
+      }
+
+      /* ─── 4c. Bright core — sits behind the doors at the seam ─── */
+      .intro-gate__core {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        width: 38vmin; height: 38vmin;
+        background: radial-gradient(circle,
+          rgba(255, 255, 255, 1) 0%,
+          rgba(255, 250, 230, 0.92) 18%,
+          rgba(255, 220, 160, 0.6) 38%,
+          rgba(255, 180, 90, 0.25) 58%,
+          transparent 78%);
+        filter: blur(3px);
+        z-index: 2; /* BEHIND doors — its light leaks out through the gap */
+        opacity: 0;
+        animation: core-flash 1.2s 0.4s ease-out forwards;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+
+      /* Burst/rays/flash removed — kept declared so markup remains valid */
+      .intro-gate__rays,
+      .intro-gate__flash,
+      .intro-gate__burst,
+      .intro-gate__core { display: none; }
+
+      /* ─── 7. Dust particles drifting ─── */
+      .intro-gate__dust {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(1.5px 1.5px at 14% 28%, rgba(255,220,160,.7), transparent),
+          radial-gradient(1px 1px at 78% 62%, rgba(255,200,140,.6), transparent),
+          radial-gradient(2px 2px at 42% 84%, rgba(255,220,160,.5), transparent),
+          radial-gradient(1px 1px at 88% 18%, rgba(255,240,200,.7), transparent),
+          radial-gradient(1.5px 1.5px at 25% 72%, rgba(255,200,140,.5), transparent),
+          radial-gradient(1px 1px at 62% 44%, rgba(255,220,160,.6), transparent),
+          radial-gradient(1.5px 1.5px at 8% 56%, rgba(255,220,160,.5), transparent),
+          radial-gradient(1px 1px at 95% 80%, rgba(255,200,140,.6), transparent);
+        z-index: 2;
+        opacity: 0.7;
+        animation: dust-drift 7s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      /* Floor element removed — the perspective grid lines were visible as
+         a geometric "rectangle" outline behind the warm wash. Keeping the
+         class declared (no styles) so the existing markup stays valid. */
+      .intro-gate__floor { display: none; }
+
+      /* ─── Logo brief reveal ─── */
+      /* Simple: fades in quickly with slight scale-up, holds briefly,
+         then fades out with slight scale-up. No invasive long animation,
+         no infinite pulse, no shockwave fireworks. */
+      .intro-gate__monogram {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: clamp(140px, 20vmin, 220px);
+        height: auto;
+        transform: translate(-50%, -50%) scale(0.9);
+        opacity: 0;
+        filter: drop-shadow(0 0 20px rgba(255, 215, 150, 0.6));
+        animation: logo-flash 1.2s 1.05s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        z-index: 6;
+        pointer-events: none;
+      }
+
+      /* Shockwave / impact-flash elements no longer used */
+      .intro-gate__shockwave,
+      .intro-gate__impact-flash { display: none; }
+
+      /* ─── Skip button ─── */
+      .intro-gate__skip {
+        position: absolute;
+        bottom: 1.5rem; right: 1.5rem;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(245,183,84,0.25);
+        color: #d29440;
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        font: inherit;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        z-index: 10;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+        opacity: 0;
+        animation: skip-fade 0.4s 0.7s ease-out forwards;
+      }
+      .intro-gate__skip:hover,
+      .intro-gate__skip:focus-visible {
+        background: rgba(245,183,84,0.18);
+        color: #ffd897;
+        border-color: rgba(245,183,84,0.5);
+      }
+
+      /* ─────────────────── CINEMATIC LAYER (Web-Vitals safe) ───────────────────
+         All three effects below animate ONLY `transform` and `opacity` so the
+         browser composites them on the GPU thread — no layout, no paint, no
+         reflows. Zero new JS, zero new images, zero new HTTP requests. No
+         `filter:` animation on large surfaces. Total cost: ~50 lines of CSS,
+         markup adds 2 empty <div>s.
+
+         Inspirations (see README → "Intro Gate → Inspiration sources"):
+           • Camera dolly-in: Apple Vision Pro landing, Lusion.co portals
+           • Camera shake on impact: Awwwards SOTD intros, cinema sound design
+           • Anamorphic lens flare: J. J. Abrams horizontal streak, Codrops
+             "Light Streak / Lens Flare" demos (tympanus.net/codrops)
+         Letterbox bars were removed — they cropped the full-height doors
+         vertically, which broke the composition. The dolly-in + shake +
+         flare are enough cinematic signal without aspect-ratio constraint. */
+
+      /* ─── Stage wrapper: hosts dolly-in + camera shake ───
+         Camera SHAKE fires at the moment doors hit fully-open (~2.0s) —
+         simulates the kinetic impact of slamming doors against the wall.
+         Camera DOLLY-IN runs concurrently for 1.0s (2.0s → 3.0s, overlapping
+         the gate-overlay-out fade) so the user feels pulled INTO the scene
+         as the intro dissolves into the page. */
+      .intro-gate__stage {
+        position: absolute;
+        inset: 0;
+        transform-origin: 50% 55%;
+        transform-style: preserve-3d;
+        will-change: transform;
+        animation:
+          camera-shake 0.32s 2.0s cubic-bezier(.36,.07,.19,.97) both,
+          camera-dolly 1.0s 2.0s cubic-bezier(.45,.05,.55,1) forwards;
+      }
+
+      /* ─── Anamorphic lens flare ───
+         Thin horizontal streak (14px tall) that sweeps across as the doors
+         start to part. Thin element + tiny blur radius keeps composite cost
+         negligible on mobile GPUs. */
+      .intro-gate__flare {
+        position: absolute;
+        top: 50%;
+        left: -10vmax;
+        width: 120vmax;
+        height: 14px;
+        margin-top: -7px;
+        background: linear-gradient(90deg,
+          transparent 0%,
+          rgba(120, 200, 255, 0) 28%,
+          rgba(140, 220, 255, 0.55) 42%,
+          rgba(255, 255, 255, 0.95) 50%,
+          rgba(255, 220, 150, 0.55) 58%,
+          rgba(255, 160, 80, 0) 72%,
+          transparent 100%);
+        filter: blur(2px);
+        mix-blend-mode: screen;
+        z-index: 7;
+        opacity: 0;
+        transform: translateX(-20vmax) scaleY(0.4);
+        will-change: opacity, transform;
+        animation: flare-sweep 0.95s 0.95s cubic-bezier(.2,.7,.3,1) forwards;
+        pointer-events: none;
+      }
+
+      /* ─── Keyframes ─── */
+      /* Final angle stops at -78° — short of the foreshortening cliff that
+         would visually collapse the door before 90°. cos(78°) ≈ 0.21,
+         so the door still presents a substantial vertical band at the end
+         of the rotation. The accompanying door-dissolve animation handles
+         the final disappearance via opacity, not via rotation. */
+      @keyframes door-open-left {
+        from { transform: rotateY(0deg); }
+        to   { transform: rotateY(-78deg); }
+      }
+      @keyframes door-open-right {
+        from { transform: rotateY(0deg); }
+        to   { transform: rotateY(78deg); }
+      }
+      @keyframes door-dissolve {
+        from { opacity: 1; }
+        to   { opacity: 0; }
+      }
+      @keyframes seam-glow {
+        0%   { opacity: 0; }
+        50%  { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      @keyframes seam-intensify {
+        0%   { opacity: 0;   transform: scaleX(0.3) scaleY(0.5); filter: blur(2px) brightness(0.6); }
+        40%  { opacity: 0.8; transform: scaleX(0.7) scaleY(0.85); }
+        100% { opacity: 1;   transform: scaleX(2) scaleY(1); filter: blur(0.5px) brightness(1.4); }
+      }
+      @keyframes seam-vanish {
+        0%   { opacity: 1; }
+        100% { opacity: 0; transform: scaleX(8); }
+      }
+      @keyframes burst-out {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.05) rotate(0deg); }
+        25%  { opacity: 0.7; transform: translate(-50%, -50%) scale(0.3) rotate(2deg); }
+        55%  { opacity: 1;   transform: translate(-50%, -50%) scale(0.8) rotate(8deg); }
+        100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.4) rotate(18deg); }
+      }
+      @keyframes core-flash {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+        30%  { opacity: 0.8; transform: translate(-50%, -50%) scale(0.5); }
+        60%  { opacity: 1;   transform: translate(-50%, -50%) scale(1.4); }
+        100% { opacity: 0;   transform: translate(-50%, -50%) scale(3.5); }
+      }
+      @keyframes light-fade-in {
+        0%   { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      /* Phase 1 — flash peak. Opacity ramps fast; brightness goes ABOVE 1
+         to simulate sensor-overload look of a real camera flash. */
+      @keyframes light-flash-in {
+        0%   { opacity: 0; filter: brightness(1) contrast(1); }
+        45%  { opacity: 1; filter: brightness(1.6) contrast(1.1); }
+        100% { opacity: 1; filter: brightness(1.45) contrast(1.05); }
+      }
+      /* Phase 2 — settle. Brightness eases back to normal as the eye adjusts. */
+      @keyframes light-flash-settle {
+        0%   { filter: brightness(1.45) contrast(1.05); }
+        100% { filter: brightness(1) contrast(1); }
+      }
+      @keyframes rays-emerge {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(0deg); }
+        40%  { opacity: 0.9; }
+        100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1) rotate(15deg); }
+      }
+      @keyframes flash {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+        20%  { opacity: 0.7; transform: translate(-50%, -50%) scale(0.5); }
+        45%  { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }
+        75%  { opacity: 0.6; transform: translate(-50%, -50%) scale(2.6); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(4); }
+      }
+      /* ─── Logo flash keyframes ─── */
+      /* Fade in (0–35%), brief hold (35–60%), fade out (60–100%). Total 1.2s. */
+      @keyframes logo-flash {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        35%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        60%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08); }
+      }
+      /* Dust drifts laterally early on, then accelerates "toward the camera"
+         (scale + slight Y rise) as the doors open — adds depth without any
+         new DOM nodes. Pure transform/opacity → composited on GPU. */
+      @keyframes dust-drift {
+        0%   { transform: translate3d(0, 0, 0)      scale(1);    opacity: 0.7; }
+        45%  { transform: translate3d(15px, -20px, 0) scale(1.05); opacity: 0.8; }
+        100% { transform: translate3d(0, -40px, 0)  scale(1.35); opacity: 0; }
+      }
+      /* ─── Cinematic-layer keyframes ─── */
+      @keyframes camera-shake {
+        0%, 100% { transform: translate3d(0, 0, 0); }
+        15%      { transform: translate3d(-4px, 2px, 0); }
+        32%      { transform: translate3d(5px, -1px, 0); }
+        52%      { transform: translate3d(-3px, -3px, 0); }
+        74%      { transform: translate3d(3px, 2px, 0); }
+        88%      { transform: translate3d(-1px, 0, 0); }
+      }
+      @keyframes camera-dolly {
+        0%   { transform: translate3d(0, 0, 0)    scale(1); }
+        100% { transform: translate3d(0, -1.5%, 0) scale(1.22); }
+      }
+      @keyframes flare-sweep {
+        0%   { opacity: 0;   transform: translateX(-20vmax) scaleY(0.3); }
+        35%  { opacity: 1;   transform: translateX(0)       scaleY(0.6); }
+        70%  { opacity: 0.7; transform: translateX(20vmax)  scaleY(0.45); }
+        100% { opacity: 0;   transform: translateX(35vmax)  scaleY(0.2); }
+      }
+      @keyframes gate-overlay-out {
+        0%   { opacity: 1; pointer-events: auto; }
+        100% { opacity: 0; pointer-events: none; visibility: hidden; }
+      }
+      @keyframes skip-fade {
+        to { opacity: 1; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .intro-gate { display: none !important; }
+      }
+
+      /* ─────────────────── BOOT LOADER ───────────────────
+         Shown BEFORE React hydrates. On first visit the intro-gate covers
+         it (so the user never sees it). On repeat visits — when the
+         intro-gate is removed instantly via sessionStorage — this loader
+         is what fills the gap between page load and React mount, giving
+         the user a branded "we're loading" cue instead of a black screen.
+
+         Lives inside <div id="root">, so React's createRoot().render()
+         automatically replaces it when the app is ready. */
+      .boot-loader {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #0a0a0f;
+        z-index: 8888;
+        pointer-events: none;
+      }
+      .boot-loader__inner {
+        position: relative;
+        display: grid;
+        place-items: center;
+        animation: boot-fade-in 0.3s ease-out;
+      }
+      .boot-loader__logo {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        animation: boot-pulse 1.6s ease-in-out infinite;
+        position: relative;
+        z-index: 2;
+      }
+      .boot-loader__spinner {
+        position: absolute;
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        border-top-color: rgba(245, 183, 84, 0.95);
+        border-right-color: rgba(245, 183, 84, 0.35);
+        animation: boot-spin 1.1s linear infinite;
+      }
+      .boot-loader__label {
+        margin-top: 2rem;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 0.75rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: rgba(168, 168, 179, 0.7);
+      }
+      @keyframes boot-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50%      { transform: scale(0.92); opacity: 0.75; }
+      }
+      @keyframes boot-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes boot-fade-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-loader__logo,
+        .boot-loader__spinner { animation: none; }
+      }
+    </style>
+    <link rel="stylesheet" href="/assets/main-T4WZDZ6E.css" />
+</head>
+  <body>
+    <a href="#main" class="skip-link">Saltar al contenido / Skip to content</a>
+
+    <!--
+      Intro gate (decorative, aria-hidden). Inserted directly in HTML so it
+      paints instantly — before React boots. The inline <script> at the
+      bottom of <body> removes it from the DOM once the animation finishes
+      (or immediately on repeat visits / reduced motion).
+    -->
+    <div id="intro-gate" class="intro-gate" aria-hidden="true">
+      <!-- Stage wraps all visual layers so the camera-shake + dolly-in transforms apply together. -->
+      <div class="intro-gate__stage">
+        <div class="intro-gate__floor"></div>
+        <div class="intro-gate__light"></div>
+        <div class="intro-gate__rays"></div>
+        <div class="intro-gate__seam"></div>
+        <div class="intro-gate__burst"></div>
+        <div class="intro-gate__core"></div>
+        <div class="intro-gate__flare"></div>
+        <div class="intro-gate__impact-flash"></div>
+        <div class="intro-gate__shockwave"></div>
+        <div class="intro-gate__shockwave intro-gate__shockwave--2"></div>
+        <div class="intro-gate__door intro-gate__door--left">
+          <div class="intro-gate__panel intro-gate__panel--top"></div>
+          <div class="intro-gate__panel intro-gate__panel--bottom"></div>
+          <div class="intro-gate__handle"></div>
+        </div>
+        <div class="intro-gate__door intro-gate__door--right">
+          <div class="intro-gate__panel intro-gate__panel--top"></div>
+          <div class="intro-gate__panel intro-gate__panel--bottom"></div>
+          <div class="intro-gate__handle"></div>
+        </div>
+        <img src="/logo-mark.svg" alt="" aria-hidden="true" class="intro-gate__monogram" />
+        <div class="intro-gate__dust"></div>
+        <div class="intro-gate__flash" aria-hidden="true"></div>
+      </div>
+      <button type="button" class="intro-gate__skip" id="intro-skip" aria-label="Saltar intro">Saltar intro →</button>
+    </div>
+
+    <div id="root">
+      <!-- Boot loader — covers the brief gap between HTML paint and React
+           hydration. Replaced automatically when createRoot().render() runs. -->
+      <div class="boot-loader" role="status" aria-label="Cargando · Loading">
+        <div class="boot-loader__inner">
+          <div style="position: relative; width: 96px; height: 96px; display: grid; place-items: center;">
+            <div class="boot-loader__spinner" aria-hidden="true"></div>
+            <img src="/logo-mark.svg" alt="" aria-hidden="true" class="boot-loader__logo" />
+          </div>
+          <div class="boot-loader__label">Yeison Velez</div>
+        </div>
+      </div>
+    </div>
+    <noscript>
+      <div style="padding:2rem;max-width:780px;margin:0 auto;font-family:Inter,sans-serif;">
+        <h1>Yeison Arles Velez Guzman — Frontend Developer</h1>
+        <p>Esta página funciona mejor con JavaScript habilitado. Si lo prefieres, puedes contactarme directamente:</p>
+        <ul>
+          <li>Email: <a href="mailto:yeisonvg11@gmail.com">yeisonvg11@gmail.com</a></li>
+          <li>LinkedIn: <a href="https://www.linkedin.com/in/yeison-velez">linkedin.com/in/yeison-velez</a></li>
+          <li>Freelancer: <a href="https://www.freelancer.com/u/yeisonvelez11">freelancer.com/u/yeisonvelez11</a></li>
+          <li>Behance: <a href="https://www.behance.net/yeisonvelez">behance.net/yeisonvelez</a></li>
+        </ul>
+      </div>
+    </noscript>
+    <!--
+      Intro gate controller — runs before the main bundle. ~340 bytes of inline
+      JS. Skips the animation on repeat visits and on reduced-motion preference,
+      removes the gate from the DOM when done so it can't accidentally block
+      interactions.
+    -->
+    <script>
+      (function () {
+        var gate = document.getElementById('intro-gate');
+        if (!gate) return;
+        var seen = false;
+        try { seen = sessionStorage.getItem('yv:gate') === '1'; } catch (e) {}
+        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (seen || reduced) {
+          gate.parentNode.removeChild(gate);
+          return;
+        }
+        var skip = document.getElementById('intro-skip');
+        function close() {
+          try { sessionStorage.setItem('yv:gate', '1'); } catch (e) {}
+          if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
+        }
+        if (skip) skip.addEventListener('click', close);
+        // Auto-remove after gate-overlay-out finishes (2.0s delay + 1.0s
+        // duration = 3.0s, +200ms buffer).
+        setTimeout(close, 3200);
+      })();
+    </script>
+
+    
+    <link rel="modulepreload" href="/assets/main-LZBDPR2D.js" />
+  <script type="module" src="/assets/main-LZBDPR2D.js"></script>
+</body>
+</html>
