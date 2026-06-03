@@ -12,6 +12,7 @@ jobs:
           gh issue --repo ${{ github.repository }} \
             create --title "Issue title" --body "Issue body"
         env:
+          GH_TOKEN: ${{ github.token }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_MODEL: ${{ secrets.GROQ_MODEL }}
           BIO_TEXT: ${{ secrets.BIO_TEXT }}
