@@ -139,7 +139,25 @@ prefiere trasnochar que madrugar.
 tiene obsesión por jugar en maquinas con peluches e invierte mucho dinero tratando de ganar.
 se casó el 31 de marzo del 2026 y conoció al amor de su vida el 27 de mayo del 2025
 una curiosidad de yeison es que tiene 34 años y no aparenta su edad
-
+otra curiosidad yeison tiene más sobrinos que hermanos. Tiene 3 hermanos y él es el menor. Yeison tiene 5 sobrinos, 2 niñas y 3 varones.
+el videojuego favorito de yeison es dragon ball z budokai tenkaichi 3, también le gustó super smash bross y megaman x4
+yeison no sabe nadar, tiene ese propósito este año
+yeison se esta capacitando actualmente sobre herramientas de IA y mejorar su inglés
+de niño quesería ser astronauta.
+yeison no le gusta comer papaya ni huevo ni maduros cocidos.
+conoce 2 paises: Ecuador y México
+su cerveza favorita es Poker.
+Es selectivo con sus circulo social, tiene amigos apreciados como Alejo the last dance, Cuchi, Caritos, Sebas, Juli6464, Yotas.
+yeison sabe manejar y tiene un carro VW Polo track.
+no le gusta caminar en ciudad, pero si en senderos y lugares naturales
+No me identifico con ningún partido político y no me gusta hablar de temas afines.
+mi mamá se llama Irma y mi papá Eduardo, se los debo todo.
+tiene una altura de 1.69
+su signo zodiacal es piscis
+mi animal favorito es el gato
+mis colores favorito son el blanco, negro o azul
+tiene mucho asco por las cucharachas
+le da miedo quedarse ciego
 `,"=== END BIO TEXT ==="].join(`
 `)}a(Q,"buildSystemPrompt");var ae=["llama-3.3-70b-versatile","llama-3.1-8b-instant"];function se(t){return t===400||t===408||t===429||t>=500&&t<=599}a(se,"isRotatableStatus");var P="cv_chat_active_model";function V(){try{return sessionStorage.getItem(P)}catch{return null}}a(V,"getActiveModel");function oe(t){try{sessionStorage.setItem(P,t)}catch{}}a(oe,"setActiveModel");function re(){try{sessionStorage.removeItem(P)}catch{}}a(re,"clearActiveModel");function ie(){let t="llama-3.3-70b-versatile",p=V(),u=[];for(let s of[p,t,...ae])s&&!u.includes(s)&&u.push(s);return u}a(ie,"buildModelChain");async function*j(t,p={}){if(!"https://cv.yeisonvg11.workers.dev/")throw new Error("GROQ_API_KEY or GROQ_PROXY_URL missing — check your .env");let d=ie(),v=null;for(let h=0;h<d.length;h++){let i=d[h];try{let m=!1,r=le("",i,t,p);for await(let l of r)m||(m=!0,oe(i)),yield l;return}catch(m){let r=m;if(r.name==="AbortError")throw r;v=r,V()===i&&re();let l=r.status??0;if(h===d.length-1||!se(l))throw r}}throw v??new Error("All Groq models exhausted")}a(j,"streamChat");async function*le(t,p,u,s){let d="https://cv.yeisonvg11.workers.dev/",v=d||ne,h={"Content-Type":"application/json"};!d&&t&&(h.Authorization=`Bearer ${t}`);let i=await fetch(v,{method:"POST",headers:h,body:JSON.stringify({model:p,messages:u,stream:!0,temperature:.5,max_tokens:320}),signal:s.signal});if(!i.ok||!i.body){let c=await i.text().catch(()=>""),g=new Error(`Groq ${p} → ${i.status}: ${c.slice(0,200)}`);throw g.status=i.status,g}let m=i.body.getReader(),r=new TextDecoder,l="";for(;;){let{value:c,done:g}=await m.read();if(g)break;l+=r.decode(c,{stream:!0});let _;for(;(_=l.indexOf(`
 
