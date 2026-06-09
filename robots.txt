@@ -60,4 +60,4 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-Sitemap: https://yeisonvelez.com/sitemap.xml
+Sitemap: https://yeisonvelez11.github.io/sitemap.xml
